@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title> — Agentic Development with GitHub Copilot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --bg-surface: #151518;
+      --bg-raised: #1c1c20;
+      --fg: #e8e6e3;
+      --fg-dim: #a8a5a0;
+      --muted: #6b6966;
+      --border: #2a2a2e;
+      --border-subtle: #1f1f23;
+      --accent: #e8a634;
+      --accent-glow: rgba(232, 166, 52, 0.12);
+      --accent-hover: #f0b94d;
+      --link: #d4a053;
+      --sidebar-w: 300px;
+      --code-bg: #1a1a1f;
+      --code-border: #2a2a30;
+      --tip-bg: rgba(78, 205, 196, 0.06);
+      --tip-border: #4ecdc4;
+      --note-bg: rgba(232, 166, 52, 0.06);
+      --note-border: var(--accent);
+      --warn-bg: rgba(239, 68, 68, 0.06);
+      --warn-border: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Everett', 'DM Sans', sans-serif;
+      color: var(--fg);
+      background: var(--bg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Ambient glow */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -40%;
+      right: -20%;
+      width: 60%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(232, 166, 52, 0.03) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Sidebar */
+    nav.sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.25rem;
+      font-size: 0.85rem;
+      z-index: 10;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    nav.sidebar::-webkit-scrollbar { width: 4px; }
+    nav.sidebar::-webkit-scrollbar-track { background: transparent; }
+    nav.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    nav.sidebar .site-title {
+      font-family: 'Instrument Serif', serif;
+      font-weight: 400;
+      font-size: 1.3rem;
+      line-height: 1.25;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: -0.01em;
+    }
+
+    nav.sidebar .site-title a {
+      color: var(--fg);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    nav.sidebar .site-title a:hover {
+      color: var(--accent);
+    }
+
+    nav.sidebar ul { list-style: none; }
+
+    nav.sidebar > ul > li {
+      margin-bottom: 0.5rem;
+    }
+
+    nav.sidebar .module-label {
+      font-weight: 600;
+      font-size: 0.82rem;
+      color: var(--fg-dim);
+      display: block;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    nav.sidebar .module-label:hover {
+      color: var(--fg);
+      background: var(--bg-raised);
+      border-color: var(--border);
+    }
+
+    nav.sidebar .module-label.active {
+      color: var(--bg);
+      background: var(--accent);
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    nav.sidebar ul ul {
+      margin-top: 0.2rem;
+      margin-left: 0.5rem;
+      margin-bottom: 0.3rem;
+      padding-left: 0.65rem;
+      border-left: 1px solid var(--border-subtle);
+    }
+
+    nav.sidebar ul ul li a {
+      display: block;
+      padding: 0.2rem 0.5rem;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      transition: all 0.15s ease;
+    }
+
+    nav.sidebar ul ul li a:hover {
+      color: var(--fg-dim);
+      background: var(--bg-raised);
+    }
+
+    nav.sidebar ul ul li a.active {
+      color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    /* Mobile menu toggle */
+    .menu-toggle {
+      display: none;
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 100;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Main content */
+    main {
+      margin-left: var(--sidebar-w);
+      max-width: 54rem;
+      padding: 3rem 3.5rem 5rem;
+      flex: 1;
+      position: relative;
+      z-index: 1;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Typography */
+    h1, h2, h3, h4 {
+      font-family: 'Instrument Serif', serif;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--fg);
+    }
+
+    h2 {
+      font-size: 1.65rem;
+      margin-top: 2.5rem;
+      margin-bottom: 0.85rem;
+      color: var(--fg);
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      margin-top: 1.75rem;
+      margin-bottom: 0.6rem;
+      color: var(--fg-dim);
+    }
+
+    h4 {
+      font-size: 1.05rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      font-family: 'Everett', 'DM Sans', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: var(--fg-dim);
+    }
+
+    p {
+      margin-bottom: 0.85rem;
+      color: var(--fg-dim);
+    }
+
+    strong { color: var(--fg); font-weight: 600; }
+
+    a {
+      color: var(--link);
+      text-decoration-color: rgba(212, 160, 83, 0.3);
+      text-underline-offset: 2px;
+      transition: all 0.15s ease;
+    }
+
+    a:hover {
+      color: var(--accent-hover);
+      text-decoration-color: var(--accent-hover);
+    }
+
+    /* Lists */
+    ul, ol {
+      margin-bottom: 0.85rem;
+      padding-left: 1.5rem;
+      color: var(--fg-dim);
+    }
+
+    li {
+      margin-bottom: 0.3rem;
+    }
+
+    li > ul, li > ol { margin-top: 0.3rem; margin-bottom: 0; }
+
+    li::marker { color: var(--muted); }
+
+    /* Code */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82em;
+      background: var(--code-bg);
+      padding: 0.2em 0.45em;
+      border-radius: 4px;
+      border: 1px solid var(--code-border);
+      color: var(--accent);
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      padding: 1.25rem 1.5rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      border: none;
+      color: var(--fg-dim);
+      font-size: inherit;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.25rem;
+      font-size: 0.88rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.85rem;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-raised);
+      font-weight: 600;
+      color: var(--fg);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td { color: var(--fg-dim); }
+
+    /* Blockquotes as callouts */
+    blockquote {
+      border-left: 3px solid var(--note-border);
+      background: var(--note-bg);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+      border-radius: 0 8px 8px 0;
+    }
+
+    blockquote p { margin-bottom: 0.3rem; color: var(--fg-dim); }
+    blockquote p:last-child { margin-bottom: 0; }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+      letter-spacing: 0.01em;
+    }
+
+    .breadcrumb a {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .breadcrumb a:hover { color: var(--accent); }
+
+    /* HR */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    /* Images */
+    img {
+      max-width: 100%;
+      border-radius: 8px;
+    }
+
+    /* Selection */
+    ::selection {
+      background: rgba(232, 166, 52, 0.25);
+      color: var(--fg);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      nav.sidebar {
+        position: fixed;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 100;
+        width: 280px;
+        min-width: 280px;
+      }
+
+      nav.sidebar.open {
+        transform: translateX(0);
+        box-shadow: 20px 0 60px rgba(0, 0, 0, 0.5);
+      }
+
+      .menu-toggle { display: flex; }
+
+      main {
+        margin-left: 0;
+        padding: 3.5rem 1.5rem 4rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      main { padding: 3.5rem 1rem 3rem; }
+      h1 { font-size: 1.8rem; }
+      h2 { font-size: 1.35rem; }
+    }
+  </style>
+</head>
+<body>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Toggle navigation">&#9776;</button>
+  <nav class="sidebar">
+    <div class="site-title"><a href="../../index.html">Agentic Dev<br>with GitHub Copilot</a></div>
+<ul>
+<li>
+<a class="module-label" href="../../00-prerequisites/index.html">00. Prerequisites</a>
+<ul>
+<li><a class="" href="../../00-prerequisites/exercises/01-project-setup.html">Project Setup</a></li>
+</ul>
+<ul><li style="margin-top:0.3rem;font-size:0.7rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Assets</li>
+<li><a class="" href="../../00-prerequisites/assets/micro-journal.html">micro-journal.md</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../01-context-and-cost/index.html">01. Context And Cost</a>
+<ul>
+<li><a class="" href="../../01-context-and-cost/exercises/01-create-copilot-instructions.html">Create Copilot Instructions</a></li>
+<li><a class="" href="../../01-context-and-cost/exercises/02-personal-instructions.html">Personal Instructions</a></li>
+<li><a class="" href="../../01-context-and-cost/exercises/03-path-specific-instructions.html">Path-Specific Instructions</a></li>
+<li><a class="" href="../../01-context-and-cost/exercises/04-agents-md.html">AGENTS.md — Cross-Tool Agent Instructions</a></li>
+<li><a class="" href="../../01-context-and-cost/exercises/05-smart-usage.html">Smart Usage</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../02-guardrails-and-safety/index.html">02. Guardrails And Safety</a>
+<ul>
+<li><a class="" href="../../02-guardrails-and-safety/exercises/01-command-allowlist.html">Configure the Terminal Command Allowlist</a></li>
+<li><a class="" href="../../02-guardrails-and-safety/exercises/02-manage-agent-tools.html">Manage Agent Tools</a></li>
+<li><a class="" href="../../02-guardrails-and-safety/exercises/03-agent-hooks.html">Agent Hooks — Programmatic Guardrails</a></li>
+<li><a class="" href="../../02-guardrails-and-safety/exercises/addendum-content-exclusion.html">Addendum: Content Exclusion and Terminal Sandbox</a></li>
+</ul>
+<ul><li style="margin-top:0.3rem;font-size:0.7rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Assets</li>
+<li><a class="" href="../../02-guardrails-and-safety/assets/read-only.agent.html">read-only.agent.md</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label active" href="../../03-planning-and-sdd/index.html">03. Planning And Sdd</a>
+<ul>
+<li><a class="" href="../../03-planning-and-sdd/exercises/01-refine-idea.html">Refine a Feature Idea with the `/spar` Prompt File</a></li>
+<li><a class=" active" href="../../03-planning-and-sdd/exercises/02-explore.html">Explore Before You Plan</a></li>
+<li><a class="" href="../../03-planning-and-sdd/exercises/03-plan-mode.html">Plan Mode</a></li>
+<li><a class="" href="../../03-planning-and-sdd/exercises/04-implement.html">Implement from the Plan</a></li>
+</ul>
+<ul><li style="margin-top:0.3rem;font-size:0.7rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Assets</li>
+<li><a class="" href="../../03-planning-and-sdd/assets/spar.prompt.html">spar.prompt.md</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../04-commands-and-prompt-files/index.html">04. Commands And Prompt Files</a>
+<ul>
+<li><a class="" href="../../04-commands-and-prompt-files/exercises/01-setup-tests.html">Built-in /setupTests Command</a></li>
+<li><a class="" href="../../04-commands-and-prompt-files/exercises/02-code-review.html">Code Review Command</a></li>
+<li><a class="" href="../../04-commands-and-prompt-files/exercises/03-update-instructions.html">Update Instructions Command</a></li>
+</ul>
+<ul><li style="margin-top:0.3rem;font-size:0.7rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Assets</li>
+<li><a class="" href="../../04-commands-and-prompt-files/assets/review-turbo.prompt.html">review-turbo.prompt.md</a></li>
+<li><a class="" href="../../04-commands-and-prompt-files/assets/structured-review.prompt.html">structured-review.prompt.md</a></li>
+<li><a class="" href="../../04-commands-and-prompt-files/assets/update-instructions.prompt.html">update-instructions.prompt.md</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../05-mcps-and-integrations/index.html">05. Mcps And Integrations</a>
+<ul>
+<li><a class="" href="../../05-mcps-and-integrations/exercises/01-find-and-configure-mcps.html">Find and Configure MCP Servers</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../06-skills/index.html">06. Skills</a>
+<ul>
+<li><a class="" href="../../06-skills/exercises/01-explore-skills.html">Explore Skills</a></li>
+<li><a class="" href="../../06-skills/exercises/02-use-frontend-design-skill.html">Use the Frontend Design Skill</a></li>
+<li><a class="" href="../../06-skills/exercises/03-use-playwright-cli-skill.html">Use the Playwright CLI Skill</a></li>
+<li><a class="" href="../../06-skills/exercises/04-use-hurl-api-testing-skill.html">Use the Hurl API Testing Skill</a></li>
+<li><a class="" href="../../06-skills/exercises/05-create-a-custom-skill.html">Create a Custom Skill</a></li>
+<li><a class="" href="../../06-skills/exercises/06-install-agent-plugin.html">Install an Agent Plugin</a></li>
+</ul>
+<ul><li style="margin-top:0.3rem;font-size:0.7rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Assets</li>
+<li><a class="" href="../../06-skills/assets/frontend-design--SKILL.html">frontend-design / SKILL.md</a></li>
+<li><a class="" href="../../06-skills/assets/hurl-api-testing--SKILL.html">hurl-api-testing / SKILL.md</a></li>
+<li><a class="" href="../../06-skills/assets/playwright-cli--SKILL.html">playwright-cli / SKILL.md</a></li>
+<li><a class="" href="../../06-skills/assets/skill-creator--SKILL.html">skill-creator / SKILL.md</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../07-agent-roles-and-orchestration/index.html">07. Agent Roles And Orchestration</a>
+<ul>
+<li><a class="" href="../../07-agent-roles-and-orchestration/exercises/01-built-in-orchestration.html">Built-in Orchestration</a></li>
+<li><a class="" href="../../07-agent-roles-and-orchestration/exercises/02-build-orchestration-framework.html">Build an Orchestration Framework</a></li>
+<li><a class="" href="../../07-agent-roles-and-orchestration/exercises/03-run-and-iterate.html">Run and Iterate</a></li>
+<li><a class="" href="../../07-agent-roles-and-orchestration/exercises/04-parallel-sessions-and-worktrees.html">Parallel Sessions and Worktrees</a></li>
+</ul>
+<ul><li style="margin-top:0.3rem;font-size:0.7rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Assets</li>
+<li><a class="" href="../../07-agent-roles-and-orchestration/assets/coder.agent.html">coder.agent.md</a></li>
+<li><a class="" href="../../07-agent-roles-and-orchestration/assets/designer.agent.html">designer.agent.md</a></li>
+<li><a class="" href="../../07-agent-roles-and-orchestration/assets/orchestrator.agent.html">orchestrator.agent.md</a></li>
+<li><a class="" href="../../07-agent-roles-and-orchestration/assets/planner.agent.html">planner.agent.md</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../08-specialist-agents/index.html">08. Specialist Agents</a>
+<ul>
+<li><a class="" href="../../08-specialist-agents/exercises/01-verification-agent.html">Build a Verification Agent</a></li>
+<li><a class="" href="../../08-specialist-agents/exercises/02-debug-agent.html">Debug Agent with Playwright CLI Skill</a></li>
+<li><a class="" href="../../08-specialist-agents/exercises/03-frontend-specialist-agent.html">Frontend Specialist Agent with llms.txt</a></li>
+<li><a class="" href="../../08-specialist-agents/exercises/04-database-specialist-agent.html">Database Specialist Agent with llms.txt</a></li>
+<li><a class="" href="../../08-specialist-agents/exercises/05-build-your-own-specialist.html">Build Your Own Specialist Agent</a></li>
+</ul>
+<ul><li style="margin-top:0.3rem;font-size:0.7rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Assets</li>
+<li><a class="" href="../../08-specialist-agents/assets/database.agent.html">database.agent.md</a></li>
+<li><a class="" href="../../08-specialist-agents/assets/debugger.agent.html">debugger.agent.md</a></li>
+<li><a class="" href="../../08-specialist-agents/assets/frontend.agent.html">frontend.agent.md</a></li>
+<li><a class="" href="../../08-specialist-agents/assets/review.agent.html">review.agent.md</a></li>
+<li><a class="" href="../../08-specialist-agents/assets/verifier.agent.html">verifier.agent.md</a></li>
+</ul>
+</li>
+<li>
+<a class="module-label" href="../../09-closing-the-loop/index.html">09. Closing The Loop</a>
+<ul>
+<li><a class="" href="../../09-closing-the-loop/exercises/01-design-your-pipeline.html">Design Your Agent Pipeline</a></li>
+</ul>
+</li>
+</ul>
+  </nav>
+  <main>
+    <div class="breadcrumb"><a href="../../index.html">Home</a> / <a href="../../03-planning-and-sdd/index.html">03. Planning And Sdd</a> / Exercise 3.2: Explore Before You Plan</div>
+<h1 id="exercise-32-explore-before-you-plan">Exercise 3.2: Explore Before You Plan</h1>
+<blockquote>
+<p><strong>Optional:</strong> This exercise is optional. You can also explore by iterating the plan in <a href="03-plan-mode.html">Exercise 3.3</a>.</p>
+</blockquote>
+<h2 id="objective">Objective</h2>
+<p>Use Ask mode to explore the codebase before generating a plan — so the plan is grounded in how the code actually works, not assumptions.</p>
+<h2 id="background">Background</h2>
+<p>Jumping straight from a spec to a plan is tempting, but plans that ignore the existing codebase tend to drift. A short exploration phase lets you (and the AI) understand the current architecture, conventions, and constraints before committing to an approach.</p>
+<h2 id="steps">Steps</h2>
+<ol type="1">
+<li><strong>Open Copilot Chat in Ask mode.</strong> Ask mode is read-only — it can read files and answer questions but won't make changes. This is exactly what you want during exploration.</li>
+<li><strong>Ask targeted questions about the area your feature touches.</strong> Use the ticket from <a href="01-refine-idea.html">Exercise 3.1</a> as context. Good questions to start with:
+<ul>
+<li>"Where does [relevant concept] live in the codebase?"</li>
+<li>"How does the current [related feature] work end-to-end?"</li>
+<li>"What patterns or conventions does this project use for [relevant area]?"</li>
+</ul></li>
+<li><strong>Follow up.</strong> If the answers reveal something unexpected — an abstraction you didn't know about, a naming convention, a dependency — dig in. The goal is to surface anything that would change your implementation approach.</li>
+<li><strong>Summarize what you learned.</strong> Before moving to Plan mode in <a href="03-plan-mode.html">Exercise 3.3</a>, note down 2-3 key findings that should inform the plan (e.g., "there's already a utility for X", "the project uses Y pattern for this kind of thing").</li>
+</ol>
+<h2 id="expected-outcome">Expected Outcome</h2>
+<p>You understand the relevant parts of the codebase well enough that the plan you generate next will work with the existing architecture, not against it.</p>
+  </main>
+  <script>
+    document.querySelectorAll('.sidebar a').forEach(function(a) {
+      a.addEventListener('click', function() {
+        document.querySelector('.sidebar').classList.remove('open');
+      });
+    });
+  </script>
+</body>
+</html>
